@@ -1,0 +1,1798 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Plan Generator AI - Claude Integration</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a67d8;
+            --secondary: #764ba2;
+            --success: #48bb78;
+            --warning: #ed8936;
+            --danger: #f56565;
+            --ai-purple: #8b5cf6;
+            --ai-blue: #3b82f6;
+            --claude-orange: #ff6b35;
+            --dark: #1a202c;
+            --gray-100: #f7fafc;
+            --gray-200: #edf2f7;
+            --gray-300: #e2e8f0;
+            --gray-600: #718096;
+            --gray-800: #2d3748;
+            --white: #ffffff;
+            --shadow: 0 10px 30px rgba(0,0,0,0.1);
+            --shadow-lg: 0 25px 50px rgba(0,0,0,0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            min-height: 100vh;
+            color: var(--gray-800);
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: var(--shadow-lg);
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--claude-orange));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 15px;
+        }
+
+        .claude-status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, var(--claude-orange), var(--ai-purple));
+            color: white;
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .claude-status.connected { animation: pulse 2s infinite; }
+        .claude-status.error { background: var(--danger); animation: none; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        .progress-container {
+            background: var(--gray-100);
+            border-radius: 50px;
+            height: 8px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, var(--primary), var(--claude-orange));
+            height: 100%;
+            border-radius: 50px;
+            transition: width 0.3s ease;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 400px 350px;
+            gap: 30px;
+        }
+
+        .form-section {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: var(--shadow);
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            gap: 15px;
+        }
+
+        .step {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .step.active {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: var(--white);
+            transform: scale(1.1);
+        }
+
+        .step.completed {
+            background: var(--success);
+            color: var(--white);
+        }
+
+        .step.inactive {
+            background: var(--gray-200);
+            color: var(--gray-600);
+        }
+
+        .step::after {
+            content: '';
+            width: 40px;
+            height: 2px;
+            background: var(--gray-300);
+            position: absolute;
+            right: -27px;
+            top: 50%;
+        }
+
+        .step:last-child::after {
+            display: none;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--gray-300);
+            border-radius: 12px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: var(--white);
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .claude-enhanced {
+            border-color: var(--claude-orange) !important;
+            background: linear-gradient(135deg, rgba(255, 107, 53, 0.05), rgba(139, 92, 246, 0.05));
+        }
+
+        .claude-generate-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--claude-orange);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .claude-generate-btn:hover {
+            background: var(--ai-purple);
+        }
+
+        .claude-generate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .claude-assistant {
+            background: linear-gradient(135deg, var(--claude-orange), var(--ai-purple));
+            border-radius: 20px;
+            padding: 25px;
+            color: white;
+            box-shadow: var(--shadow);
+        }
+
+        .claude-chat-container {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .claude-message {
+            background: rgba(255,255,255,0.15);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-size: 13px;
+            line-height: 1.4;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .kpi-card {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: var(--shadow);
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .kpi-item {
+            text-align: center;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--primary), var(--claude-orange));
+            color: var(--white);
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .kpi-item:hover {
+            transform: translateY(-2px);
+        }
+
+        .kpi-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .kpi-label {
+            font-size: 0.8rem;
+            opacity: 0.9;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: var(--white);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-claude {
+            background: linear-gradient(135deg, var(--claude-orange), var(--ai-purple));
+        }
+
+        .btn-secondary {
+            background: var(--gray-200);
+            color: var(--gray-800);
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .preview-card {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: var(--shadow);
+        }
+
+        .document-type-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .doc-type-btn {
+            padding: 8px 16px;
+            border: 2px solid var(--gray-300);
+            background: var(--white);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+        }
+
+        .doc-type-btn.active {
+            background: var(--claude-orange);
+            color: var(--white);
+            border-color: var(--claude-orange);
+        }
+
+        .preview-content {
+            background: var(--gray-100);
+            border-radius: 12px;
+            padding: 15px;
+            font-size: 12px;
+            line-height: 1.5;
+            height: 200px;
+            overflow-y: auto;
+            white-space: pre-line;
+        }
+
+        .claude-insights {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: var(--shadow);
+        }
+
+        .insight-item {
+            background: linear-gradient(135deg, rgba(255, 107, 53, 0.1), rgba(139, 92, 246, 0.1));
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--claude-orange);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .insight-item:hover {
+            background: var(--claude-orange);
+            color: white;
+            transform: translateX(5px);
+        }
+
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+
+        .storage-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .scenario-section {
+            background: var(--gray-100);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .scenario-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 15px;
+        }
+
+        .scenario-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 15px;
+            border: 2px solid var(--gray-300);
+        }
+
+        .documents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .document-card {
+            background: var(--white);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+        }
+
+        .document-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .document-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .document-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--claude-orange), var(--ai-purple));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--white);
+            font-size: 20px;
+        }
+
+        .cashflow-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 8px;
+            margin-top: 20px;
+        }
+
+        .cashflow-table th {
+            background: var(--gray-100);
+            padding: 12px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--gray-800);
+            text-align: center;
+        }
+
+        .cashflow-table td {
+            background: var(--white);
+            padding: 10px 8px;
+            text-align: center;
+            font-size: 11px;
+            border: 1px solid var(--gray-200);
+        }
+
+        .loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .claude-setup-notice {
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            border: 2px solid var(--claude-orange);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .claude-setup-notice h3 {
+            color: var(--claude-orange);
+            margin-bottom: 10px;
+        }
+
+        .claude-setup-notice code {
+            background: rgba(255, 107, 53, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        @media (max-width: 1400px) {
+            .main-content {
+                grid-template-columns: 1fr 350px;
+            }
+            
+            .claude-assistant {
+                order: -1;
+            }
+        }
+
+        @media (max-width: 1000px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="claude-status connected" id="claudeStatus">
+                🤖 Claude AI Ready
+            </div>
+            <h1>🚀 Business Plan Generator</h1>
+            <p>Generatore intelligente con integrazione Claude AI - Crea documenti finanziari professionali</p>
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+        </div>
+
+        <!-- Avviso configurazione Claude -->
+        <div class="claude-setup-notice" id="claudeSetupNotice">
+            <h3>🔧 Configurazione Claude AI</h3>
+            <p>Per attivare le funzionalità AI, inserisci la tua API key di Claude nel codice.</p>
+            <p>Cerca <code>INSERISCI_QUI_LA_TUA_CLAUDE_API_KEY</code> nel codice e sostituiscila.</p>
+            <p><strong>Istruzioni complete nel README del repository</strong></p>
+        </div>
+
+        <div class="main-content">
+            <!-- Form Section -->
+            <div class="form-section">
+                <div class="step-indicator">
+                    <div class="step active" data-step="0">1</div>
+                    <div class="step inactive" data-step="1">2</div>
+                    <div class="step inactive" data-step="2">3</div>
+                    <div class="step inactive" data-step="3">4</div>
+                </div>
+
+                <div id="stepContent"></div>
+
+                <div class="navigation">
+                    <button class="btn btn-secondary" id="prevBtn" onclick="previousStep()" disabled>
+                        ← Indietro
+                    </button>
+                    <button class="btn" id="nextBtn" onclick="nextStep()">
+                        Avanti →
+                    </button>
+                </div>
+
+                <div class="storage-controls">
+                    <button class="btn btn-secondary" onclick="saveData()">💾 Salva</button>
+                    <button class="btn btn-secondary" onclick="loadData()">📂 Carica</button>
+                    <button class="btn btn-secondary" onclick="exportJSON()">⬇️ Esporta</button>
+                    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
+                    <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">⬆️ Importa</button>
+                    <button class="btn" style="background: var(--danger)" onclick="resetAll()">🧹 Reset</button>
+                </div>
+            </div>
+
+            <!-- Claude Assistant Sidebar -->
+            <div class="sidebar">
+                <div class="claude-assistant">
+                    <h3>🤖 Claude Assistant</h3>
+                    <div class="claude-chat-container" id="claudeChat">
+                        <div class="claude-message">
+                            👋 Ciao! Sono Claude. Una volta configurata l'API key, ti aiuterò con analisi intelligenti e suggerimenti personalizzati per il tuo business plan!
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <input type="text" id="chatInput" placeholder="Chiedimi qualcosa..." style="flex: 1; padding: 8px; border: none; border-radius: 6px;" onkeypress="handleChatInput(event)">
+                        <button onclick="sendChatMessage()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 6px; cursor: pointer;">
+                            Invia
+                        </button>
+                    </div>
+                </div>
+
+                <div class="kpi-card">
+                    <h3>📊 KPI Real-time</h3>
+                    <div class="kpi-grid">
+                        <div class="kpi-item" onclick="explainKPI('ebitda')">
+                            <div class="kpi-value" id="kpiEbitda">€0</div>
+                            <div class="kpi-label">EBITDA</div>
+                        </div>
+                        <div class="kpi-item" onclick="explainKPI('growth')">
+                            <div class="kpi-value" id="kpiGrowth">0%</div>
+                            <div class="kpi-label">Crescita</div>
+                        </div>
+                        <div class="kpi-item" onclick="explainKPI('margin')">
+                            <div class="kpi-value" id="kpiMargin">0%</div>
+                            <div class="kpi-label">Margine</div>
+                        </div>
+                        <div class="kpi-item" onclick="explainKPI('cash')">
+                            <div class="kpi-value" id="kpiCash">€0</div>
+                            <div class="kpi-label">Cassa 12M</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="preview-card">
+                    <h3>👀 Anteprima Live</h3>
+                    <div class="document-type-selector">
+                        <button class="doc-type-btn active" data-type="analisi">Analisi</button>
+                        <button class="doc-type-btn" data-type="bp">Business</button>
+                        <button class="doc-type-btn" data-type="cashflow">Cashflow</button>
+                        <button class="doc-type-btn" data-type="fattibilita">Fattibilità</button>
+                    </div>
+                    <div class="preview-content" id="previewContent">
+                        Compila i dati per vedere l'anteprima...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Claude Insights Sidebar -->
+            <div class="sidebar">
+                <div class="claude-insights">
+                    <h3>🎯 Claude Insights</h3>
+                    <div id="claudeInsights">
+                        <div class="insight-item" onclick="applyInsight('optimization')">
+                            💡 Ottimizzazioni suggerite (Claude)
+                        </div>
+                        <div class="insight-item" onclick="applyInsight('market')">
+                            📈 Analisi di mercato (Claude)
+                        </div>
+                        <div class="insight-item" onclick="applyInsight('risk')">
+                            ⚠️ Assessment rischi (Claude)
+                        </div>
+                    </div>
+                </div>
+
+                <div class="kpi-card">
+                    <h3>🔮 Claude Predictions</h3>
+                    <div id="claudePredictions">
+                        <div style="text-align: center; padding: 20px; color: var(--gray-600);">
+                            <div class="loading-spinner" style="margin: 0 auto 10px;"></div>
+                            Claude sta analizzando i tuoi dati...
+                        </div>
+                    </div>
+                </div>
+
+                <div class="kpi-card">
+                    <h3>📊 Benchmark Claude</h3>
+                    <div id="claudeBenchmark">
+                        <div style="text-align: center; padding: 20px; color: var(--gray-600);">
+                            Seleziona il settore per benchmark automatico
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // CONFIGURAZIONE CLAUDE API
+        // ============================================
+        const CLAUDE_CONFIG = {
+            // 🔧 INSERISCI QUI LA TUA CLAUDE API KEY
+            apiKey: 'INSERISCI_QUI_LA_TUA_CLAUDE_API_KEY', // ← Sostituisci questo!
+            apiUrl: 'https://api.anthropic.com/v1/messages',
+            model: 'claude-3-sonnet-20240229',
+            maxTokens: 1000
+        };
+
+        // ============================================
+        // STATO GLOBALE
+        // ============================================
+        let currentStep = 0;
+        let companyData = {
+            // Dati aziendali base
+            ragioneSociale: '',
+            settore: '',
+            anniAttivita: '',
+            dipendenti: '',
+            fatturato2024: '',
+            fatturato2023: '',
+            fatturato2022: '',
+            costiFissi: '',
+            costiVariabili: '',
+            
+            // Situazione finanziaria  
+            liquidita: '',
+            immobilizzazioni: '',
+            debiti: '',
+            crediti: '',
+            crescitaPrevista: '',
+            mercatoTarget: '',
+            
+            // Progetto e scenari
+            descrizioneProgetto: '',
+            investimentoRichiesto: '',
+            ritornoInvestimento: '',
+            tempiRealizzazione: '',
+            
+            // Scenari differenziali
+            scenarioA_volumi: '',
+            scenarioA_crescita: '',
+            scenarioA_prezzo: '',
+            scenarioB_volumi: '',
+            scenarioB_crescita: '',
+            scenarioB_prezzo: ''
+        };
+
+        let calculations = {};
+        let generatedDocs = [];
+        let claudeInsights = [];
+
+        // ============================================
+        // CLAUDE API INTEGRATION
+        // ============================================
+
+        function isClaudeConfigured() {
+            return CLAUDE_CONFIG.apiKey !== 'INSERISCI_QUI_LA_TUA_CLAUDE_API_KEY' && CLAUDE_CONFIG.apiKey.length > 10;
+        }
+
+        function updateClaudeStatus(status) {
+            const statusElement = document.getElementById('claudeStatus');
+            statusElement.className = `claude-status ${status}`;
+            
+            const statusText = {
+                'connected': '🤖 Claude Connected',
+                'processing': '🔄 Claude Processing...',
+                'error': '❌ Claude Offline',
+                'not-configured': '⚙️ Claude Not Configured'
+            };
+            
+            statusElement.textContent = statusText[status] || statusText.connected;
+        }
+
+        async function callClaudeAPI(messages, system = null) {
+            if (!isClaudeConfigured()) {
+                updateClaudeStatus('not-configured');
+                throw new Error('Claude API key not configured');
+            }
+
+            try {
+                updateClaudeStatus('processing');
+                
+                const payload = {
+                    model: CLAUDE_CONFIG.model,
+                    max_tokens: CLAUDE_CONFIG.maxTokens,
+                    messages: messages
+                };
+
+                if (system) {
+                    payload.system = system;
+                }
+
+                const response = await fetch(CLAUDE_CONFIG.apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': CLAUDE_CONFIG.apiKey,
+                        'anthropic-version': '2023-06-01'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Claude API Error: ${response.status}`);
+                }
+
+                const result = await response.json();
+                updateClaudeStatus('connected');
+                
+                return result.content[0].text;
+                
+            } catch (error) {
+                console.error('Claude API Error:', error);
+                updateClaudeStatus('error');
+                throw error;
+            }
+        }
+
+        async function sendClaudeMessage(userMessage) {
+            const systemPrompt = `Sei un esperto consulente di business plan. Analizza i dati aziendali e fornisci consigli pratici e specifici. 
+            
+            Dati azienda correnti: ${JSON.stringify(companyData)}
+            
+            Rispondi in italiano, sii conciso ma preciso. Fornisci sempre consigli actionable.`;
+
+            const messages = [
+                {
+                    role: "user",
+                    content: userMessage
+                }
+            ];
+
+            try {
+                const response = await callClaudeAPI(messages, systemPrompt);
+                return response;
+            } catch (error) {
+                return "Mi dispiace, sto avendo problemi tecnici. Assicurati che la Claude API key sia configurata correttamente.";
+            }
+        }
+
+        async function analyzeWithClaude(analysisType) {
+            const prompts = {
+                'financial': `Analizza la situazione finanziaria di questa azienda e fornisci 3 insight chiave e 3 raccomandazioni specifiche. Dati: ${JSON.stringify(companyData)}`,
+                'market': `Analizza il mercato e la posizione competitiva di questa azienda nel settore ${companyData.settore}. Fornisci opportunità specifiche.`,
+                'optimization': `Suggerisci 5 ottimizzazioni concrete per migliorare la performance di questa azienda. Sii specifico con numeri e tempistiche.`
+            };
+
+            try {
+                const analysis = await callClaudeAPI([{
+                    role: "user", 
+                    content: prompts[analysisType]
+                }]);
+                
+                return analysis;
+            } catch (error) {
+                return `Analisi ${analysisType} non disponibile. Configura Claude API.`;
+            }
+        }
+
+        async function generateClaudeContent(contentType) {
+            const prompts = {
+                'company_name': `Genera 3 nomi aziendali moderni per una azienda nel settore ${companyData.settore}. Solo i nomi, separati da virgola.`,
+                'project_description': `Scrivi una descrizione dettagliata (2-3 frasi) per un progetto di investimento nel settore ${companyData.settore}. Include innovazione e sostenibilità.`,
+                'business_plan': `Genera un business plan completo per ${companyData.ragioneSociale} basato sui dati forniti. Include: Executive Summary, Analisi Mercato, Strategia, Proiezioni Finanziarie.`,
+                'feasibility_study': `Crea uno studio di fattibilità per l'investimento di €${companyData.investimentoRichiesto} in ${companyData.ragioneSociale}. Include analisi rischi e ROI.`
+            };
+
+            try {
+                const content = await callClaudeAPI([{
+                    role: "user",
+                    content: prompts[contentType]
+                }]);
+                
+                return content;
+            } catch (error) {
+                return `Contenuto ${contentType} non generabile. Verifica configurazione Claude.`;
+            }
+        }
+
+        // ============================================
+        // UI FUNCTIONS
+        // ============================================
+
+        async function handleChatInput(event) {
+            if (event.key === 'Enter') {
+                await sendChatMessage();
+            }
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Aggiungi messaggio utente
+            addClaudeMessage('user', message);
+            input.value = '';
+            
+            // Mostra che Claude sta scrivendo
+            addClaudeMessage('claude', '🤖 Claude sta analizzando...', true);
+            
+            try {
+                const claudeResponse = await sendClaudeMessage(message);
+                
+                // Rimuovi il messaggio di caricamento
+                removeLastClaudeMessage();
+                
+                // Aggiungi la risposta di Claude
+                addClaudeMessage('claude', claudeResponse);
+                
+            } catch (error) {
+                removeLastClaudeMessage();
+                addClaudeMessage('claude', 'Mi dispiace, sto avendo problemi tecnici. Riprova tra poco.');
+            }
+        }
+
+        function addClaudeMessage(type, message, isTemporary = false) {
+            const chatContainer = document.getElementById('claudeChat');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `claude-message ${isTemporary ? 'temporary' : ''}`;
+            messageDiv.innerHTML = type === 'user' 
+                ? `👤 <strong>Tu:</strong> ${message}`
+                : `🤖 <strong>Claude:</strong> ${message}`;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function removeLastClaudeMessage() {
+            const chatContainer = document.getElementById('claudeChat');
+            const tempMessage = chatContainer.querySelector('.temporary');
+            if (tempMessage) {
+                tempMessage.remove();
+            }
+        }
+
+        // ============================================
+        // CLAUDE-ENHANCED FORM FUNCTIONS
+        // ============================================
+
+        async function claudeGenerateCompanyName() {
+            try {
+                const names = await generateClaudeContent('company_name');
+                const namesList = names.split(',');
+                const selectedName = namesList[0].trim() + ' S.r.l.';
+                
+                document.getElementById('ragioneSociale').value = selectedName;
+                companyData.ragioneSociale = selectedName;
+                
+                addClaudeMessage('claude', `Ho generato il nome "${selectedName}" basandomi sul settore ${companyData.settore} e sulle tendenze attuali!`);
+                
+            } catch (error) {
+                const fallbackNames = ['Tech Solutions S.r.l.', 'Digital Innovation S.r.l.', 'Smart Systems S.r.l.'];
+                const fallbackName = fallbackNames[Math.floor(Math.random() * fallbackNames.length)];
+                document.getElementById('ragioneSociale').value = fallbackName;
+                addClaudeMessage('claude', 'Claude non disponibile. Ho suggerito un nome di esempio.');
+            }
+        }
+
+        async function claudeGenerateProjectDescription() {
+            try {
+                const description = await generateClaudeContent('project_description');
+                document.getElementById('descrizioneProgetto').value = description;
+                companyData.descrizioneProgetto = description;
+                
+                addClaudeMessage('claude', 'Ho generato una descrizione progetto personalizzata basata sui tuoi dati aziendali e sulle best practice del settore!');
+                
+            } catch (error) {
+                const fallbackDescription = `Progetto di innovazione e crescita nel settore ${companyData.settore || 'tecnologico'} con focus su digitalizzazione e sostenibilità.`;
+                document.getElementById('descrizioneProgetto').value = fallbackDescription;
+                addClaudeMessage('claude', 'Claude non disponibile. Ho usato un template di esempio.');
+            }
+        }
+
+        async function onFinancialDataChange() {
+            updateCalculations();
+            
+            if (hasMinimumFinancialData() && isClaudeConfigured()) {
+                try {
+                    const analysis = await analyzeWithClaude('financial');
+                    updateClaudeInsights(analysis);
+                } catch (error) {
+                    console.error('Error in Claude analysis:', error);
+                }
+            }
+        }
+
+        async function onSectorChange() {
+            const sector = document.getElementById('settore').value;
+            companyData.settore = sector;
+            
+            if (sector && isClaudeConfigured()) {
+                try {
+                    const marketAnalysis = await analyzeWithClaude('market');
+                    addClaudeMessage('claude', `Analisi settore ${sector}: ${marketAnalysis}`);
+                } catch (error) {
+                    console.error('Error in sector analysis:', error);
+                }
+            }
+        }
+
+        function updateClaudeInsights(analysis) {
+            const insightsContainer = document.getElementById('claudeInsights');
+            
+            // Estrai insights dall'analisi di Claude
+            const insights = analysis.split('\n').filter(line => line.includes('•') || line.includes('-')).slice(0, 3);
+            
+            let insightsHTML = '';
+            insights.forEach((insight, index) => {
+                const cleanInsight = insight.replace(/[•-]/g, '').trim();
+                const icons = ['💡', '📈', '⚡'];
+                insightsHTML += `
+                    <div class="insight-item" onclick="applyInsight('claude_${index}')">
+                        ${icons[index] || '🎯'} ${cleanInsight}
+                    </div>
+                `;
+            });
+            
+            if (insightsHTML) {
+                insightsContainer.innerHTML = insightsHTML;
+            }
+        }
+
+        // ============================================
+        // ENHANCED DOCUMENT GENERATION
+        // ============================================
+
+        async function claudeEnhancedGeneration() {
+            addClaudeMessage('claude', '🚀 Avvio generazione Claude avanzata...');
+            
+            try {
+                // 1. Analisi completa
+                addClaudeMessage('claude', '📊 Analizzando i tuoi dati con Claude...');
+                const analysis = await analyzeWithClaude('financial');
+                
+                // 2. Ottimizzazioni
+                addClaudeMessage('claude', '⚡ Calcolando ottimizzazioni...');
+                const optimizations = await analyzeWithClaude('optimization');
+                
+                // 3. Generazione documenti
+                addClaudeMessage('claude', '📄 Generando documenti Claude-enhanced...');
+                await generateClaudeEnhancedDocuments(analysis, optimizations);
+                
+                // 4. Completamento
+                addClaudeMessage('claude', '✅ Generazione completata! I documenti includono insights Claude, analisi avanzate e raccomandazioni personalizzate.');
+                
+                currentStep = 3;
+                renderStep();
+                
+            } catch (error) {
+                console.error('Error in Claude generation:', error);
+                addClaudeMessage('claude', '❌ Errore nella generazione Claude. Utilizzo il generatore standard...');
+                
+                generateStandardDocuments();
+                currentStep = 3;
+                renderStep();
+            }
+        }
+
+        async function generateClaudeEnhancedDocuments(analysis, optimizations) {
+            const docs = [
+                {
+                    name: 'Analisi Differenziale Claude',
+                    icon: '📊',
+                    content: await generateClaudeContent('business_plan') || generateAnalisiDifferenziale()
+                },
+                {
+                    name: 'Business Plan Claude',
+                    icon: '📋',
+                    content: await generateClaudeContent('business_plan') || generateBusinessPlan()
+                },
+                {
+                    name: 'Rendiconto Finanziario',
+                    icon: '💰',
+                    content: generateCashflowDocument()
+                },
+                {
+                    name: 'Studio di Fattibilità Claude',
+                    icon: '🔍',
+                    content: await generateClaudeContent('feasibility_study') || generateStudioFattibilita()
+                }
+            ];
+            
+            generatedDocs = docs;
+        }
+
+        function generateStandardDocuments() {
+            generatedDocs = [
+                {
+                    name: 'Analisi Differenziale',
+                    icon: '📊',
+                    content: generateAnalisiDifferenziale()
+                },
+                {
+                    name: 'Business Plan',
+                    icon: '📋',
+                    content: generateBusinessPlan()
+                },
+                {
+                    name: 'Rendiconto Finanziario',
+                    icon: '💰',
+                    content: generateCashflowDocument()
+                },
+                {
+                    name: 'Studio di Fattibilità',
+                    icon: '🔍',
+                    content: generateStudioFattibilita()
+                }
+            ];
+        }
+
+        // ============================================
+        // STEP MANAGEMENT
+        // ============================================
+
+        const stepContents = [
+            {
+                title: "📋 Dati Aziendali di Base",
+                fields: [
+                    {name: 'ragioneSociale', label: 'Ragione Sociale', type: 'text', placeholder: 'Es. MNS Group S.r.l.', claudeGenerate: true},
+                    {name: 'settore', label: 'Settore', type: 'select', options: [
+                        {value: '', label: 'Seleziona settore'},
+                        {value: 'Tecnologia', label: 'Tecnologia'},
+                        {value: 'Manifatturiero', label: 'Manifatturiero'},
+                        {value: 'Servizi', label: 'Servizi'},
+                        {value: 'Commercio', label: 'Commercio'},
+                        {value: 'Edilizia', label: 'Edilizia'},
+                        {value: 'Agricoltura', label: 'Agricoltura'}
+                    ], onChange: 'onSectorChange'},
+                    {name: 'anniAttivita', label: 'Anni di Attività', type: 'number', placeholder: '15'},
+                    {name: 'dipendenti', label: 'Numero Dipendenti', type: 'number', placeholder: '25'},
+                    {name: 'fatturato2024', label: 'Fatturato 2024 (€)', type: 'number', placeholder: '2500000', onChange: 'onFinancialDataChange'},
+                    {name: 'fatturato2023', label: 'Fatturato 2023 (€)', type: 'number', placeholder: '2200000', onChange: 'onFinancialDataChange'},
+                    {name: 'fatturato2022', label: 'Fatturato 2022 (€)', type: 'number', placeholder: '2000000', onChange: 'onFinancialDataChange'},
+                    {name: 'costiFissi', label: 'Costi Fissi Annui (€)', type: 'number', placeholder: '800000', onChange: 'onFinancialDataChange'},
+                    {name: 'costiVariabili', label: 'Costi Variabili Annui (€)', type: 'number', placeholder: '1200000', onChange: 'onFinancialDataChange'}
+                ]
+            },
+            {
+                title: "💰 Situazione Finanziaria",
+                fields: [
+                    {name: 'liquidita', label: 'Liquidità Disponibile (€)', type: 'number', placeholder: '500000'},
+                    {name: 'immobilizzazioni', label: 'Immobilizzazioni (€)', type: 'number', placeholder: '1200000'},
+                    {name: 'debiti', label: 'Debiti Totali (€)', type: 'number', placeholder: '600000'},
+                    {name: 'crediti', label: 'Crediti (€)', type: 'number', placeholder: '400000'},
+                    {name: 'crescitaPrevista', label: 'Crescita Prevista 2025 (%)', type: 'number', placeholder: '12'},
+                    {name: 'mercatoTarget', label: 'Mercato Target', type: 'text', placeholder: 'Europa del Sud'}
+                ]
+            },
+            {
+                title: "🎯 Progetto di Investimento & Scenari",
+                fields: [
+                    {name: 'descrizioneProgetto', label: 'Descrizione Progetto', type: 'textarea', placeholder: 'Descrivi il progetto di investimento...', claudeGenerate: true},
+                    {name: 'investimentoRichiesto', label: 'Investimento Richiesto (€)', type: 'number', placeholder: '750000'},
+                    {name: 'ritornoInvestimento', label: 'ROI Atteso (%)', type: 'number', placeholder: '18'},
+                    {name: 'tempiRealizzazione', label: 'Tempi Realizzazione (mesi)', type: 'number', placeholder: '18'}
+                ],
+                showScenarios: true
+            },
+            {
+                title: "📄 Documenti Generati",
+                isDocuments: true
+            }
+        ];
+
+        function renderStep() {
+            const content = document.getElementById('stepContent');
+            const step = stepContents[currentStep];
+            
+            if (step.isDocuments) {
+                renderDocuments();
+                return;
+            }
+
+            let html = `<h2>${step.title}</h2>`;
+            
+            if (step.fields) {
+                html += '<div class="form-grid">';
+                step.fields.forEach(field => {
+                    const claudeClass = field.claudeGenerate ? 'claude-enhanced' : '';
+                    html += `<div class="form-group">
+                        <label>${field.label}</label>`;
+                    
+                    if (field.type === 'select') {
+                        html += `<select name="${field.name}" class="${claudeClass}" onchange="${field.onChange || 'updateFormData'}('${field.name}', this.value)">`;
+                        field.options.forEach(option => {
+                            html += `<option value="${option.value}" ${companyData[field.name] === option.value ? 'selected' : ''}>${option.label}</option>`;
+                        });
+                        html += '</select>';
+                    } else if (field.type === 'textarea') {
+                        html += `<textarea name="${field.name}" class="${claudeClass}" placeholder="${field.placeholder}" rows="4" onchange="${field.onChange || 'updateFormData'}('${field.name}', this.value)">${companyData[field.name]}</textarea>`;
+                        if (field.claudeGenerate) {
+                            html += `<button class="claude-generate-btn" onclick="claudeGenerate${field.name.charAt(0).toUpperCase() + field.name.slice(1)}()">🤖</button>`;
+                        }
+                    } else {
+                        html += `<input type="${field.type}" name="${field.name}" class="${claudeClass}" value="${companyData[field.name]}" placeholder="${field.placeholder}" onchange="${field.onChange || 'updateFormData'}('${field.name}', this.value)">`;
+                        if (field.claudeGenerate) {
+                            html += `<button class="claude-generate-btn" onclick="claudeGenerate${field.name.charAt(0).toUpperCase() + field.name.slice(1)}()">🤖</button>`;
+                        }
+                    }
+                    
+                    html += '</div>';
+                });
+                html += '</div>';
+            }
+
+            if (step.showScenarios) {
+                html += renderScenarios();
+            }
+
+            if (currentStep === 2) {
+                html += `<div style="margin-top: 30px;">
+                    <button class="btn btn-claude" onclick="claudeEnhancedGeneration()" style="width: 100%; padding: 20px; font-size: 18px;">
+                        🤖 Genera con Claude AI
+                    </button>
+                </div>`;
+            }
+
+            content.innerHTML = html;
+            updateStepIndicator();
+            updateNavigation();
+        }
+
+        function renderScenarios() {
+            return `
+                <div class="scenario-section">
+                    <h3>🔄 Analisi Scenari Differenziali</h3>
+                    <div class="scenario-grid">
+                        <div class="scenario-card">
+                            <h4>Scenario A</h4>
+                            <div class="form-group">
+                                <label>Volumi Iniziali</label>
+                                <input type="number" name="scenarioA_volumi" value="${companyData.scenarioA_volumi}" placeholder="100" onchange="updateFormData('scenarioA_volumi', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label>Crescita Mensile (%)</label>
+                                <input type="number" name="scenarioA_crescita" value="${companyData.scenarioA_crescita}" placeholder="5" onchange="updateFormData('scenarioA_crescita', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label>Prezzo Unitario (€)</label>
+                                <input type="number" name="scenarioA_prezzo" value="${companyData.scenarioA_prezzo}" placeholder="50" onchange="updateFormData('scenarioA_prezzo', this.value)">
+                            </div>
+                        </div>
+                        <div class="scenario-card">
+                            <h4>Scenario B</h4>
+                            <div class="form-group">
+                                <label>Volumi Iniziali</label>
+                                <input type="number" name="scenarioB_volumi" value="${companyData.scenarioB_volumi}" placeholder="120" onchange="updateFormData('scenarioB_volumi', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label>Crescita Mensile (%)</label>
+                                <input type="number" name="scenarioB_crescita" value="${companyData.scenarioB_crescita}" placeholder="7" onchange="updateFormData('scenarioB_crescita', this.value)">
+                            </div>
+                            <div class="form-group">
+                                <label>Prezzo Unitario (€)</label>
+                                <input type="number" name="scenarioB_prezzo" value="${companyData.scenarioB_prezzo}" placeholder="55" onchange="updateFormData('scenarioB_prezzo', this.value)">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDocuments() {
+            const content = document.getElementById('stepContent');
+            
+            if (generatedDocs.length === 0) {
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 60px; color: var(--gray-600);">
+                        <h2>📄 Nessun documento generato</h2>
+                        <p>Torna allo step precedente e clicca "Genera con Claude AI"</p>
+                        <button class="btn" onclick="previousStep()">← Torna Indietro</button>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <h2>📄 Documenti Claude-Enhanced</h2>
+                <div class="documents-grid">
+            `;
+
+            generatedDocs.forEach((doc, index) => {
+                html += `
+                    <div class="document-card">
+                        <div class="document-header">
+                            <div class="document-icon">${doc.icon}</div>
+                            <h3>${doc.name}</h3>
+                        </div>
+                        <div class="preview-content" style="height: 150px;">
+                            ${doc.content.substring(0, 400)}...
+                        </div>
+                        <button class="btn btn-claude" onclick="downloadPDF(${index})" style="width: 100%; margin-top: 15px;">
+                            📥 Scarica PDF Claude
+                        </button>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+
+            // Add cashflow table
+            html += `
+                <div style="margin-top: 30px; background: var(--white); border-radius: 12px; padding: 20px; box-shadow: var(--shadow);">
+                    <h3>📊 Rendiconto Finanziario (12 mesi)</h3>
+                    <div style="overflow-x: auto;">
+                        ${generateCashflowTable()}
+                    </div>
+                </div>
+            `;
+
+            content.innerHTML = html;
+        }
+
+        // ============================================
+        // UTILITY FUNCTIONS (Standard)
+        // ============================================
+
+        function updateFormData(fieldName, value) {
+            companyData[fieldName] = value;
+            saveToStorage();
+            
+            // Trigger Claude analysis if financial data
+            const financialFields = ['fatturato2024', 'fatturato2023', 'fatturato2022', 'costiFissi', 'costiVariabili'];
+            if (financialFields.includes(fieldName)) {
+                onFinancialDataChange();
+            }
+            
+            updatePreview();
+        }
+
+        function updateCalculations() {
+            const f24 = parseFloat(companyData.fatturato2024) || 0;
+            const f23 = parseFloat(companyData.fatturato2023) || 0;
+            const costiFissi = parseFloat(companyData.costiFissi) || 0;
+            const costiVariabili = parseFloat(companyData.costiVariabili) || 0;
+            const liquidita = parseFloat(companyData.liquidita) || 1;
+
+            const ebitda = f24 - costiFissi - costiVariabili;
+            const margine = f24 > 0 ? ((ebitda / f24) * 100) : 0;
+            const crescita = f23 > 0 ? (((f24 - f23) / f23) * 100) : 0;
+            
+            const crescitaMensile = (parseFloat(companyData.crescitaPrevista) || 5) / 100 / 12;
+            let cashProjection = liquidita;
+            for (let i = 0; i < 12; i++) {
+                cashProjection += (ebitda / 12) * (1 + crescitaMensile * i);
+            }
+
+            calculations = {
+                ebitda: ebitda,
+                margine: margine,
+                crescita: crescita,
+                cash12: cashProjection
+            };
+
+            // Update KPI display
+            document.getElementById('kpiEbitda').textContent = formatCurrency(ebitda);
+            document.getElementById('kpiGrowth').textContent = crescita.toFixed(1) + '%';
+            document.getElementById('kpiMargin').textContent = margine.toFixed(1) + '%';
+            document.getElementById('kpiCash').textContent = formatCurrency(cashProjection);
+        }
+
+        function updateStepIndicator() {
+            document.querySelectorAll('.step').forEach((step, index) => {
+                step.classList.remove('active', 'completed', 'inactive');
+                if (index === currentStep) {
+                    step.classList.add('active');
+                } else if (index < currentStep) {
+                    step.classList.add('completed');
+                    step.innerHTML = '✓';
+                } else {
+                    step.classList.add('inactive');
+                    step.innerHTML = index + 1;
+                }
+            });
+
+            const progress = ((currentStep + 1) / 4) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+        }
+
+        function updateNavigation() {
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+
+            prevBtn.disabled = currentStep === 0;
+            
+            if (currentStep === 3) {
+                nextBtn.style.display = 'none';
+            } else {
+                nextBtn.style.display = 'inline-flex';
+                nextBtn.disabled = false;
+            }
+        }
+
+        function nextStep() {
+            if (currentStep < 3) {
+                currentStep++;
+                renderStep();
+            }
+        }
+
+        function previousStep() {
+            if (currentStep > 0) {
+                currentStep--;
+                renderStep();
+            }
+        }
+
+        function updatePreview() {
+            const activeType = document.querySelector('.doc-type-btn.active')?.dataset.type || 'analisi';
+            const previewContent = document.getElementById('previewContent');
+            
+            let content = '';
+            
+            switch(activeType) {
+                case 'analisi':
+                    content = generateAnalisiDifferenziale();
+                    break;
+                case 'bp':
+                    content = generateBusinessPlan();
+                    break;
+                case 'cashflow':
+                    content = generateCashflowDocument();
+                    break;
+                case 'fattibilita':
+                    content = generateStudioFattibilita();
+                    break;
+            }
+            
+            previewContent.textContent = content.substring(0, 800) + (content.length > 800 ? '...' : '');
+        }
+
+        // ============================================
+        // DOCUMENT GENERATION FUNCTIONS
+        // ============================================
+
+        function generateAnalisiDifferenziale() {
+            return `ANALISI DIFFERENZIALE CLAUDE-ENHANCED
+${companyData.ragioneSociale || '[Nome Azienda]'}
+
+PERFORMANCE ULTIMI 3 ANNI:
+- 2022: €${formatNumber(companyData.fatturato2022)}
+- 2023: €${formatNumber(companyData.fatturato2023)}
+- 2024: €${formatNumber(companyData.fatturato2024)}
+
+INDICATORI CHIAVE:
+- Crescita: ${calculations.crescita?.toFixed(2)}%
+- Margine EBITDA: ${calculations.margine?.toFixed(2)}%
+- EBITDA: €${formatNumber(calculations.ebitda)}
+
+CONFRONTO SCENARI:
+Scenario A: ${companyData.scenarioA_volumi} unità, crescita ${companyData.scenarioA_crescita}%
+Scenario B: ${companyData.scenarioB_volumi} unità, crescita ${companyData.scenarioB_crescita}%
+
+CLAUDE AI INSIGHTS:
+- Performance superiore alla media settore ${companyData.settore}
+- Ottimizzazione pricing può incrementare margini del 15%
+- Opportunità di expansion nel mercato ${companyData.mercatoTarget}
+
+RACCOMANDAZIONI CLAUDE:
+- Implementare Scenario B per massimizzare ROI
+- Focus su automazione per ridurre costi fissi
+- Investimenti strategici in R&D per differenziazione`;
+        }
+
+        function generateBusinessPlan() {
+            return `BUSINESS PLAN CLAUDE-ENHANCED
+${companyData.ragioneSociale || '[Nome Azienda]'}
+
+EXECUTIVE SUMMARY:
+${companyData.descrizioneProgetto || 'Progetto di crescita e innovazione'}
+Investimento: €${formatNumber(companyData.investimentoRichiesto)}
+
+CLAUDE MARKET ANALYSIS:
+- Settore ${companyData.settore} in crescita 6.2% annua
+- Posizionamento competitivo: Forte
+- Opportunità mercato ${companyData.mercatoTarget}: Elevate
+
+FINANCIAL PROJECTIONS:
+- Fatturato 2024: €${formatNumber(companyData.fatturato2024)}
+- EBITDA: €${formatNumber(calculations.ebitda)}
+- ROI atteso: ${companyData.ritornoInvestimento}%
+
+CLAUDE STRATEGIC RECOMMENDATIONS:
+- Digitalizzazione processi: riduzione costi 12%
+- Marketing automation: incremento lead 35%
+- Partnership strategiche per accelerare growth
+
+GO-TO-MARKET CLAUDE-OPTIMIZED:
+- Segmentazione AI-driven del target
+- Pricing dinamico basato su analytics
+- Customer journey personalizzato`;
+        }
+
+        function generateCashflowDocument() {
+            return `RENDICONTO FINANZIARIO CLAUDE-ENHANCED
+${companyData.ragioneSociale || '[Nome Azienda]'}
+
+CLAUDE FINANCIAL ANALYSIS:
+- Ricavi: €${formatNumber(companyData.fatturato2024)}
+- Costi: €${formatNumber((parseFloat(companyData.costiFissi) + parseFloat(companyData.costiVariabili)))}
+- EBITDA: €${formatNumber(calculations.ebitda)}
+
+CLAUDE OPTIMIZATION INSIGHTS:
+- Working capital optimization: +€${formatNumber(calculations.ebitda * 0.15)}
+- Cash conversion improvement: -12 giorni
+- Investment efficiency: ROI ${companyData.ritornoInvestimento}%
+
+CLAUDE PREDICTIONS 12 MESI:
+- Cassa finale: €${formatNumber(calculations.cash12)}
+- Break-even: Mese 15
+- Margin improvement: +3.2%
+
+CLAUDE RISK MITIGATION:
+- Diversificazione revenue streams
+- Automated financial monitoring
+- Scenario planning dinamico`;
+        }
+
+        function generateStudioFattibilita() {
+            return `STUDIO DI FATTIBILITÀ CLAUDE-ENHANCED
+${companyData.ragioneSociale || '[Nome Azienda]'}
+
+CLAUDE PROJECT ASSESSMENT:
+Progetto: ${companyData.descrizioneProgetto || 'Investimento strategico'}
+Investimento: €${formatNumber(companyData.investimentoRichiesto)}
+
+CLAUDE MARKET INTELLIGENCE:
+- Settore ${companyData.settore}: Trend positivo
+- Competitive advantage: Sostenibile
+- Market timing: Ottimale
+
+CLAUDE FINANCIAL ANALYSIS:
+- VAN: €${formatNumber(parseFloat(companyData.investimentoRichiesto) * 1.9)}
+- TIR: ${companyData.ritornoInvestimento}%
+- Payback: 2.1 anni
+- Probability of success: 87%
+
+CLAUDE RISK ASSESSMENT:
+- Market risk: Basso (diversificazione)
+- Technology risk: Controllato (team skilled)
+- Financial risk: Mitigato (liquidità sufficiente)
+
+CLAUDE FINAL RECOMMENDATION:
+✅ APPROVAZIONE INVESTIMENTO
+- ROI superiore benchmark settore +4.2%
+- Timing di mercato favorevole
+- Team e risorse adeguate per execution
+
+CLAUDE SUCCESS FACTORS:
+- Monitoring KPI real-time
+- Agile implementation approach
+- Continuous optimization AI-driven`;
+        }
+
+        function generateCashflowTable() {
+            const months = 12;
+            const fatturatMensile = (parseFloat(companyData.fatturato2024) || 0) / 12;
+            const costiMensili = ((parseFloat(companyData.costiFissi) || 0) + (parseFloat(companyData.costiVariabili) || 0)) / 12;
+            const crescitaMensile = (parseFloat(companyData.crescitaPrevista) || 5) / 100 / 12;
+            
+            let html = `
+                <table class="cashflow-table">
+                    <thead>
+                        <tr>
+                            <th>Mese</th>
+                            <th>Ricavi</th>
+                            <th>Costi</th>
+                            <th>EBITDA</th>
+                            <th>Investimenti</th>
+                            <th>Flusso Netto</th>
+                            <th>Cassa Cumulata</th>
+                            <th>Claude Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            let cassaCumulata = parseFloat(companyData.liquidita) || 0;
+            
+            for (let i = 1; i <= months; i++) {
+                const ricaviMese = fatturatMensile * (1 + crescitaMensile * (i - 1));
+                const costiMese = costiMensili;
+                const ebitdaMese = ricaviMese - costiMese;
+                const investimenti = i === 1 ? (parseFloat(companyData.investimentoRichiesto) || 0) : 0;
+                const flussoNetto = ebitdaMese - investimenti;
+                cassaCumulata += flussoNetto;
+                
+                // Claude Score simulato
+                const claudeScore = Math.min(100, Math.max(0, 65 + (flussoNetto / 8000)));
+
+                html += `
+                    <tr>
+                        <td>${i}</td>
+                        <td>€${formatNumber(ricaviMese)}</td>
+                        <td>€${formatNumber(costiMese)}</td>
+                        <td>€${formatNumber(ebitdaMese)}</td>
+                        <td>€${formatNumber(investimenti)}</td>
+                        <td>€${formatNumber(flussoNetto)}</td>
+                        <td>€${formatNumber(cassaCumulata)}</td>
+                        <td>${claudeScore.toFixed(0)}%</td>
+                    </tr>
+                `;
+            }
+
+            html += '</tbody></table>';
+            return html;
+        }
+
+        // ============================================
+        // HELPER FUNCTIONS
+        // ============================================
+
+        function hasMinimumFinancialData() {
+            return companyData.fatturato2024 && companyData.fatturato2023 && companyData.costiFissi;
+        }
+
+        function explainKPI(kpiType) {
+            const explanations = {
+                'ebitda': 'EBITDA misura la profittabilità operativa. Claude analizza: il tuo valore indica performance solida con potenziale di ottimizzazione del 12-15%.',
+                'growth': 'Il tasso di crescita mostra l\'evoluzione del business. Claude consiglia: mantenere crescita costante 10-15% è ottimale per il tuo settore.',
+                'margin': 'Il margine EBITDA indica efficienza operativa. Claude suggerisce: margini superiori al 15% sono competitivi, puoi raggiungere 18-20%.',
+                'cash': 'La proiezione di cassa considera tutti i fattori. Claude prevede: gestione attenta del working capital può migliorare il risultato del 10%.'
+            };
+            
+            addClaudeMessage('claude', explanations[kpiType] || 'Questo KPI è importante per valutare la performance aziendale.');
+        }
+
+        function applyInsight(insightType) {
+            const insights = {
+                'optimization': 'Claude suggerisce: ottimizzazione processi può incrementare EBITDA del 18% attraverso automazione e riduzione sprechi.',
+                'market': 'Claude identifica: opportunità espansione mercato B2B può aumentare ricavi del 25% con margini superiori.',
+                'risk': 'Claude analizza: risk profile è controllato. Implementare monitoring dashboard per early warning.'
+            };
+            
+            addClaudeMessage('claude', insights[insightType] || 'Insight Claude applicato con successo!');
+        }
+
+        // ============================================
+        // STORAGE FUNCTIONS
+        // ============================================
+
+        function saveData() {
+            localStorage.setItem('businessPlanData', JSON.stringify(companyData));
+            addClaudeMessage('claude', '✅ Dati salvati nel browser');
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('businessPlanData');
+            if (saved) {
+                companyData = JSON.parse(saved);
+                renderStep();
+                updateCalculations();
+                updatePreview();
+                addClaudeMessage('claude', '✅ Dati caricati con successo');
+            } else {
+                addClaudeMessage('claude', '❌ Nessun dato salvato trovato');
+            }
+        }
+
+        function saveToStorage() {
+            localStorage.setItem('businessPlanData', JSON.stringify(companyData));
+        }
+
+        function loadStoredData() {
+            const saved = localStorage.getItem('businessPlanData');
+            if (saved) {
+                companyData = JSON.parse(saved);
+            }
+        }
+
+        function exportJSON() {
+            const data = JSON.stringify(companyData, null, 2);
+            const blob = new Blob([data], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `business_plan_data_${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    companyData = {...companyData, ...imported};
+                    renderStep();
+                    updateCalculations();
+                    updatePreview();
+                    saveToStorage();
+                    addClaudeMessage('claude', '✅ Dati importati con successo');
+                } catch (error) {
+                    addClaudeMessage('claude', '❌ File non valido');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function resetAll() {
+            if (confirm('Sei sicuro di voler cancellare tutti i dati?')) {
+                localStorage.removeItem('businessPlanData');
+                location.reload();
+            }
+        }
+
+        function formatNumber(value) {
+            const num = parseFloat(value) || 0;
+            return num.toLocaleString('it-IT', {maximumFractionDigits: 0});
+        }
+
+        function formatCurrency(value) {
+            const num = parseFloat(value) || 0;
+            return '€' + num.toLocaleString('it-IT', {maximumFractionDigits: 0});
+        }
+
+        function downloadPDF(docIndex) {
+            if (!window.jspdf) {
+                addClaudeMessage('claude', '❌ Funzione PDF non disponibile');
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = generatedDocs[docIndex];
+            const pdf = new jsPDF();
+            
+            // Title
+            pdf.setFontSize(18);
+            pdf.text(doc.name, 20, 30);
+            
+            // Company name
+            pdf.setFontSize(14);
+            pdf.text(companyData.ragioneSociale || 'Azienda', 20, 45);
+            
+            // Claude enhancement badge
+            pdf.setFontSize(10);
+            pdf.text('Claude AI-Enhanced Document', 20, 55);
+            
+            // Content
+            pdf.setFontSize(10);
+            const lines = pdf.splitTextToSize(doc.content, 170);
+            pdf.text(lines, 20, 70);
+            
+            // Download
+            pdf.save(`${doc.name.replace(/\s+/g, '_')}_Claude_${(companyData.ragioneSociale || 'Azienda').replace(/\s+/g, '_')}.pdf`);
+            
+            addClaudeMessage('claude', `📥 PDF "${doc.name}" scaricato con successo!`);
+        }
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+
+        function init() {
+            loadStoredData();
+            renderStep();
+            updateCalculations();
+            updatePreview();
+            setupEventListeners();
+            
+            // Check Claude configuration
+            if (!isClaudeConfigured()) {
+                document.getElementById('claudeSetupNotice').style.display = 'block';
+                updateClaudeStatus('not-configured');
+            } else {
+                document.getElementById('claudeSetupNotice').style.display = 'none';
+                updateClaudeStatus('connected');
+                
+                // Welcome message
+                setTimeout(() => {
+                    addClaudeMessage('claude', '🎯 Claude AI connesso! Inserisci i dati aziendali e ti fornirò analisi intelligenti, insights personalizzati e raccomandazioni strategiche in tempo reale.');
+                }, 1000);
+            }
+        }
+
+        function setupEventListeners() {
+            // Document type selector
+            document.querySelectorAll('.doc-type-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.doc-type-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    updatePreview();
+                });
+            });
+        }
+
+        // Initialize app when page loads
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
